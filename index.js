@@ -1,158 +1,167 @@
+import "dotenv/config";
 import {
   Client,
   GatewayIntentBits,
-  ChannelType,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  EmbedBuilder,
   REST,
   Routes,
   SlashCommandBuilder
 } from "discord.js";
 
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = process.env.GUILD_ID;
-
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-// 🔥 CONFIG COMPLETA
-const estrutura = {
-  "🏠 BASE DA RESENHA": [
-    "📜・boas-vindas",
-    "📌・regras",
-    "📢・avisos"
-  ],
-  "💬 COMUNIDADE": [
-    "💭・chat-geral",
-    "😂・zoeira",
-    "📸・midia",
-    "💡・sugestões",
-    "📢・divulgacao"
-  ],
-  "💎 ÁREA VIP": [
-    "💎・familia-souza",
-    "💎・familia",
-    "👕・set-roupas",
-    "👗・roupas-aurora",
-    "👔・roupas-henrique"
-  ],
-  "🔒 RESENHAS": [
-    "🔒・resenha-secreta",
-    "🔒・resenha-familia",
-    "🔒・familia-naty",
-    "🔒・resenha",
-    "💤・dormindo"
-  ],
-  "🔊 VOZ": [
-    "🔊・geral-1",
-    "🔊・geral-2",
-    "🔇・sem-microfone"
-  ],
-  "🤖 BOTS": [
-    "🤖・comandos",
-    "🤖・jogos"
-  ],
-  "⚙️ ADMIN": [
-    "🚫・denuncias",
-    "📝・logs",
-    "⚙️・staff"
-  ]
-};
-
-// 🔍 achar parecido
-function acharParecido(guild, nome) {
-  return guild.channels.cache.find(c =>
-    c.name.toLowerCase().includes(nome.split("・")[1]?.toLowerCase())
-  );
-}
-
-// 🔥 criar ou pegar categoria
-async function getCategoria(guild, nome) {
-  let cat = guild.channels.cache.find(
-    c => c.name === nome && c.type === ChannelType.GuildCategory
-  );
-
-  if (!cat) {
-    cat = await guild.channels.create({
-      name: nome,
-      type: ChannelType.GuildCategory
-    });
-  }
-
-  return cat;
-}
-
-// 🔥 organizar canal
-async function organizar(guild, nome, categoria, pos, tipo) {
-  let canal = guild.channels.cache.find(c => c.name === nome);
-
-  if (!canal) canal = acharParecido(guild, nome);
-
-  if (!canal) {
-    canal = await guild.channels.create({
-      name: nome,
-      type: tipo,
-      parent: categoria.id
-    });
-  }
-
-  if (canal.name !== nome) await canal.setName(nome);
-  if (canal.parentId !== categoria.id) await canal.setParent(categoria.id);
-
-  await canal.setPosition(pos);
-}
-
-// 📌 comando
+// 📌 REGISTRAR COMANDO
 const commands = [
   new SlashCommandBuilder()
-    .setName("setup-servidor")
-    .setDescription("Organização completa automática")
-].map(c => c.toJSON());
+    .setName("painel-investigacao")
+    .setDescription("Envia o painel de solicitação de investigação")
+];
 
-const rest = new REST({ version: "10" }).setToken(TOKEN);
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
 (async () => {
   await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
     { body: commands }
   );
 })();
 
-client.once("clientReady", () => {
-  console.log("🔥 BOT COMPLETO ONLINE");
+// 🚀 BOT ONLINE
+client.once("ready", () => {
+  console.log(`✅ Logado como ${client.user.tag}`);
 });
 
+// 📌 COMANDO PAINEL
 client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
 
-  if (interaction.commandName === "setup-servidor") {
-    await interaction.reply({
-      content: "⚙️ Organizando TUDO...",
-      ephemeral: true
-    });
+  // SLASH
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === "painel-investigacao") {
 
-    const guild = interaction.guild;
-    let posGlobal = 0;
+      const embed = new EmbedBuilder()
+        .setTitle("🔍 AUTORIZAÇÃO DE INVESTIGAÇÃO")
+        .setDescription("Clique no botão abaixo para solicitar uma investigação.")
+        .setColor("Gold");
 
-    for (const [catNome, canais] of Object.entries(estrutura)) {
-      const categoria = await getCategoria(guild, catNome);
-      await categoria.setPosition(posGlobal++);
+      const btn = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("abrir_form")
+          .setLabel("Solicitar Investigação")
+          .setStyle(ButtonStyle.Primary)
+      );
 
-      let pos = 0;
+      await interaction.reply({ embeds: [embed], components: [btn] });
+    }
+  }
 
-      for (const nome of canais) {
-        const tipo = nome.includes("🔊") || nome.includes("🔒") || nome.includes("🔇")
-          ? 2
-          : 0;
+  // BOTÃO ABRIR FORM
+  if (interaction.isButton()) {
+    if (interaction.customId === "abrir_form") {
 
-        await organizar(guild, nome, categoria, pos++, tipo);
-      }
+      const modal = new ModalBuilder()
+        .setCustomId("form_investigacao")
+        .setTitle("Solicitação de Investigação");
+
+      const nome = new TextInputBuilder()
+        .setCustomId("nome")
+        .setLabel("Seu Nome")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const alvo = new TextInputBuilder()
+        .setCustomId("alvo")
+        .setLabel("Nome do Alvo")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const motivo = new TextInputBuilder()
+        .setCustomId("motivo")
+        .setLabel("Motivo da Investigação")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
+
+      const provas = new TextInputBuilder()
+        .setCustomId("provas")
+        .setLabel("Provas Iniciais")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(nome),
+        new ActionRowBuilder().addComponents(alvo),
+        new ActionRowBuilder().addComponents(motivo),
+        new ActionRowBuilder().addComponents(provas)
+      );
+
+      await interaction.showModal(modal);
     }
 
-    await interaction.followUp({
-      content: "✅ SERVIDOR 100% ORGANIZADO!"
-    });
+    // APROVAR / NEGAR
+    if (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("negar_")) {
+
+      if (!interaction.member.roles.cache.has(process.env.CARGO_JUIZ)) {
+        return interaction.reply({ content: "❌ Você não é juiz!", ephemeral: true });
+      }
+
+      const aprovado = interaction.customId.startsWith("aprovar_");
+
+      const embed = EmbedBuilder.from(interaction.message.embeds[0])
+        .setColor(aprovado ? "Green" : "Red")
+        .addFields({
+          name: "🔨 Decisão",
+          value: aprovado ? "Autorização Deferida ✅" : "Autorização Indeferida ❌"
+        });
+
+      await interaction.update({ embeds: [embed], components: [] });
+    }
+  }
+
+  // MODAL ENVIADO
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === "form_investigacao") {
+
+      const nome = interaction.fields.getTextInputValue("nome");
+      const alvo = interaction.fields.getTextInputValue("alvo");
+      const motivo = interaction.fields.getTextInputValue("motivo");
+      const provas = interaction.fields.getTextInputValue("provas");
+
+      const canal = client.channels.cache.get(process.env.CANAL_ANALISE);
+
+      const embed = new EmbedBuilder()
+        .setTitle("📂 NOVA SOLICITAÇÃO DE INVESTIGAÇÃO")
+        .setColor("Orange")
+        .addFields(
+          { name: "👤 Solicitante", value: nome },
+          { name: "🎯 Alvo", value: alvo },
+          { name: "📄 Motivo", value: motivo },
+          { name: "📎 Provas", value: provas }
+        )
+        .setFooter({ text: `ID do usuário: ${interaction.user.id}` });
+
+      const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`aprovar_${interaction.user.id}`)
+          .setLabel("Aprovar")
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`negar_${interaction.user.id}`)
+          .setLabel("Negar")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await canal.send({ embeds: [embed], components: [buttons] });
+
+      await interaction.reply({ content: "✅ Solicitação enviada!", ephemeral: true });
+    }
   }
 });
 
-client.login(TOKEN);
+client.login(process.env.TOKEN);
