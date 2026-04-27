@@ -1,7 +1,7 @@
 import { Client, GatewayIntentBits, ChannelType } from "discord.js";
 
 // 🔐 COLE SEU TOKEN AQUI (SEM ESPAÇO)
-const TOKEN = "MTQ5ODMxMTA0OTUxNzA3NjY0MQ.Gzb20r.yBYb8xqjmGDlMa8M8MA4NHm0zLrzcinTIgGfBs";
+const TOKEN = process.env.TOKEN;
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
