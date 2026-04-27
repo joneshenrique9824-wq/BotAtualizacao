@@ -8,7 +8,7 @@ import {
 } from "discord.js";
 
 // 🔐 COLOCA AQUI (SEM ASPAS ERRADAS)
-const TOKEN = "MTQ5ODMxMTA0OTUxNzA3NjY0MQ.GCAGYc.w-73QVn0JuVofUMxAvWN-qp1QiR0sFetfslQ8k";
+const TOKEN = "MTQ5ODMxMTA0OTUxNzA3NjY0MQ.Givpxd.tEYZ1Rvj9x7LoO6xpahnDpnJfgV2oNz0rhPJfM";
 const CLIENT_ID = "1498311049517076641";
 
 const client = new Client({
