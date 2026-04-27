@@ -9,6 +9,7 @@ import {
 
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID; // 🔥 IMPORTANTE
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -59,16 +60,28 @@ const commands = [
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
+// 🔥 REGISTRO INSTANTÂNEO
 (async () => {
-  await rest.put(Routes.applicationCommands(CLIENT_ID), {
-    body: commands
-  });
+  try {
+    console.log("🔄 Registrando comando...");
+
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+
+    console.log("✅ Comando registrado na hora!");
+  } catch (err) {
+    console.log("❌ Erro ao registrar:", err);
+  }
 })();
 
-client.once("ready", () => {
-  console.log("✅ Bot online");
+// ✅ READY CORRETO
+client.once("clientReady", () => {
+  console.log(`✅ Bot online como ${client.user.tag}`);
 });
 
+// 🎮 comando
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -94,7 +107,7 @@ client.on("interactionCreate", async (interaction) => {
     await organizarCanal(guild, "💡・sugestões", 0, com);
     await organizarCanal(guild, "📢・divulgacao", 0, com);
 
-    // 💎 VIP (NÃO REMOVE OS SEUS)
+    // 💎 VIP
     const vip = await getOuCriaCategoria(guild, "💎 ÁREA VIP");
     await organizarCanal(guild, "💎・familia-souza", 0, vip);
     await organizarCanal(guild, "💎・familia", 0, vip);
