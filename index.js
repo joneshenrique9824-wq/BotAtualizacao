@@ -15,33 +15,102 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-// 🔥 pegar categoria (NÃO cria)
-function pegarCategoria(guild, nome) {
-  return guild.channels.cache.find(
-    c => c.name === nome && c.type === ChannelType.GuildCategory
+// 🔥 CONFIG COMPLETA
+const estrutura = {
+  "🏠 BASE DA RESENHA": [
+    "📜・boas-vindas",
+    "📌・regras",
+    "📢・avisos"
+  ],
+  "💬 COMUNIDADE": [
+    "💭・chat-geral",
+    "😂・zoeira",
+    "📸・midia",
+    "💡・sugestões",
+    "📢・divulgacao"
+  ],
+  "💎 ÁREA VIP": [
+    "💎・familia-souza",
+    "💎・familia",
+    "👕・set-roupas",
+    "👗・roupas-aurora",
+    "👔・roupas-henrique"
+  ],
+  "🔒 RESENHAS": [
+    "🔒・resenha-secreta",
+    "🔒・resenha-familia",
+    "🔒・familia-naty",
+    "🔒・resenha",
+    "💤・dormindo"
+  ],
+  "🔊 VOZ": [
+    "🔊・geral-1",
+    "🔊・geral-2",
+    "🔇・sem-microfone"
+  ],
+  "🤖 BOTS": [
+    "🤖・comandos",
+    "🤖・jogos"
+  ],
+  "⚙️ ADMIN": [
+    "🚫・denuncias",
+    "📝・logs",
+    "⚙️・staff"
+  ]
+};
+
+// 🔍 achar parecido
+function acharParecido(guild, nome) {
+  return guild.channels.cache.find(c =>
+    c.name.toLowerCase().includes(nome.split("・")[1]?.toLowerCase())
   );
 }
 
-// 🔥 organizar canal (SEM criar)
-async function moverSeExistir(guild, nome, categoria) {
-  const canal = guild.channels.cache.find(c => c.name === nome);
-  if (!canal) return; // não cria
+// 🔥 criar ou pegar categoria
+async function getCategoria(guild, nome) {
+  let cat = guild.channels.cache.find(
+    c => c.name === nome && c.type === ChannelType.GuildCategory
+  );
 
-  if (canal.parentId !== categoria.id) {
-    await canal.setParent(categoria.id);
+  if (!cat) {
+    cat = await guild.channels.create({
+      name: nome,
+      type: ChannelType.GuildCategory
+    });
   }
+
+  return cat;
+}
+
+// 🔥 organizar canal
+async function organizar(guild, nome, categoria, pos, tipo) {
+  let canal = guild.channels.cache.find(c => c.name === nome);
+
+  if (!canal) canal = acharParecido(guild, nome);
+
+  if (!canal) {
+    canal = await guild.channels.create({
+      name: nome,
+      type: tipo,
+      parent: categoria.id
+    });
+  }
+
+  if (canal.name !== nome) await canal.setName(nome);
+  if (canal.parentId !== categoria.id) await canal.setParent(categoria.id);
+
+  await canal.setPosition(pos);
 }
 
 // 📌 comando
 const commands = [
   new SlashCommandBuilder()
     .setName("setup-servidor")
-    .setDescription("Organiza canais existentes sem criar nada")
-].map(cmd => cmd.toJSON());
+    .setDescription("Organização completa automática")
+].map(c => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
-// 🔥 registrar instantâneo
 (async () => {
   await rest.put(
     Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
@@ -49,45 +118,39 @@ const rest = new REST({ version: "10" }).setToken(TOKEN);
   );
 })();
 
-// ✅ pronto
 client.once("clientReady", () => {
-  console.log("✅ Bot online");
+  console.log("🔥 BOT COMPLETO ONLINE");
 });
 
-// 🎮 comando
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === "setup-servidor") {
     await interaction.reply({
-      content: "⚙️ Ajustando organização...",
+      content: "⚙️ Organizando TUDO...",
       ephemeral: true
     });
 
     const guild = interaction.guild;
+    let posGlobal = 0;
 
-    // 💎 VIP
-    const vip = pegarCategoria(guild, "💎 ÁREA VIP");
-    if (vip) {
-      await moverSeExistir(guild, "💎・familia-souza", vip);
-      await moverSeExistir(guild, "💎・familia", vip);
-      await moverSeExistir(guild, "👕・set-roupas", vip);
-      await moverSeExistir(guild, "👗・roupas-aurora", vip);
-      await moverSeExistir(guild, "👔・roupas-henrique", vip);
-    }
+    for (const [catNome, canais] of Object.entries(estrutura)) {
+      const categoria = await getCategoria(guild, catNome);
+      await categoria.setPosition(posGlobal++);
 
-    // 🔒 VOZ
-    const voz = pegarCategoria(guild, "🔒 RESENHAS");
-    if (voz) {
-      await moverSeExistir(guild, "🔒・resenha-secreta", voz);
-      await moverSeExistir(guild, "🔒・resenha-familia", voz);
-      await moverSeExistir(guild, "🔒・familia-naty", voz);
-      await moverSeExistir(guild, "🔒・resenha", voz);
-      await moverSeExistir(guild, "💤・dormindo", voz);
+      let pos = 0;
+
+      for (const nome of canais) {
+        const tipo = nome.includes("🔊") || nome.includes("🔒") || nome.includes("🔇")
+          ? 2
+          : 0;
+
+        await organizar(guild, nome, categoria, pos++, tipo);
+      }
     }
 
     await interaction.followUp({
-      content: "✅ Organização corrigida sem criar nada!"
+      content: "✅ SERVIDOR 100% ORGANIZADO!"
     });
   }
 });
