@@ -1,20 +1,43 @@
-import "dotenv/config";
 import {
   Client,
   GatewayIntentBits,
   ChannelType,
-  PermissionsBitField,
   REST,
   Routes,
   SlashCommandBuilder
 } from "discord.js";
 
+// 🔐 VARIÁVEIS DO PAINEL
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+
+if (!TOKEN) {
+  console.log("❌ TOKEN não definido no painel!");
+  process.exit(1);
+}
+
+if (!CLIENT_ID) {
+  console.log("❌ CLIENT_ID não definido no painel!");
+  process.exit(1);
+}
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-const TOKEN = process.env.TOKEN;
+// 🔍 evita duplicar canais
+async function criar(guild, nome, tipo, parent = null) {
+  const canal = guild.channels.cache.find(c => c.name === nome);
+  if (canal) return canal;
 
+  return await guild.channels.create({
+    name: nome,
+    type: tipo,
+    parent: parent?.id
+  });
+}
+
+// 📌 comando
 const commands = [
   new SlashCommandBuilder()
     .setName("setup-servidor")
@@ -23,122 +46,69 @@ const commands = [
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
+// 🚀 registrar comando
 (async () => {
-  await rest.put(
-    Routes.applicationCommands(CLIENT_ID),
-    { body: commands }
-  );
+  try {
+    console.log("🔄 Registrando comando...");
+    await rest.put(Routes.applicationCommands(CLIENT_ID), {
+      body: commands
+    });
+    console.log("✅ Comando registrado!");
+  } catch (err) {
+    console.log("❌ Erro ao registrar comando:", err);
+  }
 })();
 
+// ✅ bot online
 client.once("ready", () => {
   console.log(`✅ Bot online como ${client.user.tag}`);
 });
 
+// 🎮 comando
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === "setup-servidor") {
-    await interaction.reply({ content: "⚙️ Organizando servidor...", ephemeral: true });
+    await interaction.reply({
+      content: "⚙️ Organizando servidor...",
+      ephemeral: true
+    });
 
     const guild = interaction.guild;
 
     // 🏠 BASE
-    const base = await guild.channels.create({
-      name: "🏠 BASE DA RESENHA",
-      type: ChannelType.GuildCategory
-    });
-
-    await guild.channels.create({
-      name: "📜・boas-vindas",
-      type: ChannelType.GuildText,
-      parent: base.id
-    });
-
-    await guild.channels.create({
-      name: "📌・regras",
-      type: ChannelType.GuildText,
-      parent: base.id
-    });
-
-    await guild.channels.create({
-      name: "📢・avisos",
-      type: ChannelType.GuildText,
-      parent: base.id
-    });
+    const base = await criar(guild, "🏠 BASE DA RESENHA", ChannelType.GuildCategory);
+    await criar(guild, "📜・boas-vindas", 0, base);
+    await criar(guild, "📌・regras", 0, base);
+    await criar(guild, "📢・avisos", 0, base);
 
     // 💬 COMUNIDADE
-    const comunidade = await guild.channels.create({
-      name: "💬 COMUNIDADE",
-      type: ChannelType.GuildCategory
-    });
+    const com = await criar(guild, "💬 COMUNIDADE", ChannelType.GuildCategory);
+    await criar(guild, "💭・chat-geral", 0, com);
+    await criar(guild, "😂・zoeira", 0, com);
+    await criar(guild, "📸・midia", 0, com);
+    await criar(guild, "💡・sugestões", 0, com);
+    await criar(guild, "📢・divulgacao", 0, com);
 
-    await guild.channels.create({ name: "💭・chat-geral", type: 0, parent: comunidade.id });
-    await guild.channels.create({ name: "😂・zoeira", type: 0, parent: comunidade.id });
-    await guild.channels.create({ name: "📸・midia", type: 0, parent: comunidade.id });
-    await guild.channels.create({ name: "💡・sugestões", type: 0, parent: comunidade.id });
-
-    // 📢 DIVULGAÇÃO (MANTIDO)
-    await guild.channels.create({
-      name: "📢・divulgacao",
-      type: ChannelType.GuildText,
-      parent: comunidade.id
-    });
-
-    // 💎 VIP / FAMÍLIA
-    const vip = await guild.channels.create({
-      name: "💎 ÁREA VIP",
-      type: ChannelType.GuildCategory
-    });
-
-    await guild.channels.create({ name: "💎・familia-souza", type: 0, parent: vip.id });
-    await guild.channels.create({ name: "💎・familia", type: 0, parent: vip.id });
-    await guild.channels.create({ name: "👕・set-roupas", type: 0, parent: vip.id });
-    await guild.channels.create({ name: "👗・roupas-aurora", type: 0, parent: vip.id });
-    await guild.channels.create({ name: "👔・roupas-henrique", type: 0, parent: vip.id });
+    // 💎 VIP (mantém os seus)
+    const vip = await criar(guild, "💎 ÁREA VIP", ChannelType.GuildCategory);
+    await criar(guild, "💎・familia-souza", 0, vip);
+    await criar(guild, "💎・familia", 0, vip);
+    await criar(guild, "👕・set-roupas", 0, vip);
+    await criar(guild, "👗・roupas-aurora", 0, vip);
+    await criar(guild, "👔・roupas-henrique", 0, vip);
 
     // 🔒 VOZ
-    const vozPrivada = await guild.channels.create({
-      name: "🔒 RESENHAS",
-      type: ChannelType.GuildCategory
+    const voz = await criar(guild, "🔒 RESENHAS", ChannelType.GuildCategory);
+    await criar(guild, "🔒・resenha", 2, voz);
+    await criar(guild, "🔒・familia", 2, voz);
+    await criar(guild, "💤・dormindo", 2, voz);
+
+    await interaction.followUp({
+      content: "✅ Servidor organizado!"
     });
-
-    await guild.channels.create({ name: "🔒・resenha-secreta", type: 2, parent: vozPrivada.id });
-    await guild.channels.create({ name: "🔒・resenha-familia", type: 2, parent: vozPrivada.id });
-    await guild.channels.create({ name: "🔒・familia-naty", type: 2, parent: vozPrivada.id });
-    await guild.channels.create({ name: "🔒・resenha", type: 2, parent: vozPrivada.id });
-    await guild.channels.create({ name: "💤・dormindo", type: 2, parent: vozPrivada.id });
-
-    // 🤖 BOTS
-    const bots = await guild.channels.create({
-      name: "🤖 BOTS",
-      type: ChannelType.GuildCategory
-    });
-
-    await guild.channels.create({ name: "🤖・comandos-loritta", type: 0, parent: bots.id });
-    await guild.channels.create({ name: "🤖・gartic-bot", type: 0, parent: bots.id });
-
-    // 🔊 VOZ GERAL
-    const voz = await guild.channels.create({
-      name: "🔊 CONVERSA DE VOZ",
-      type: ChannelType.GuildCategory
-    });
-
-    await guild.channels.create({ name: "🔇・sem-microfone", type: 2, parent: voz.id });
-    await guild.channels.create({ name: "🔊・geral-1", type: 2, parent: voz.id });
-    await guild.channels.create({ name: "🔊・geral-2", type: 2, parent: voz.id });
-
-    // ⚙️ ADMIN
-    const admin = await guild.channels.create({
-      name: "⚙️ ADMINISTRAÇÃO",
-      type: ChannelType.GuildCategory
-    });
-
-    await guild.channels.create({ name: "🚫・denuncias", type: 0, parent: admin.id });
-    await guild.channels.create({ name: "📝・logs", type: 0, parent: admin.id });
-    await guild.channels.create({ name: "⚙️・staff", type: 0, parent: admin.id });
-
-    interaction.followUp({ content: "✅ Servidor organizado com sucesso!" });
   }
 });
 
+// 🚀 login
 client.login(TOKEN);
