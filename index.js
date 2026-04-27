@@ -9,76 +9,49 @@ import {
 
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = process.env.GUILD_ID; // 🔥 IMPORTANTE
+const GUILD_ID = process.env.GUILD_ID;
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-// 🔥 pega ou cria categoria
-async function getOuCriaCategoria(guild, nome) {
-  let categoria = guild.channels.cache.find(
+// 🔥 pegar categoria (NÃO cria)
+function pegarCategoria(guild, nome) {
+  return guild.channels.cache.find(
     c => c.name === nome && c.type === ChannelType.GuildCategory
   );
-
-  if (!categoria) {
-    categoria = await guild.channels.create({
-      name: nome,
-      type: ChannelType.GuildCategory
-    });
-  }
-
-  return categoria;
 }
 
-// 🔥 organiza canal (CRIA OU MOVE)
-async function organizarCanal(guild, nome, tipo, categoria) {
-  let canal = guild.channels.cache.find(c => c.name === nome);
+// 🔥 organizar canal (SEM criar)
+async function moverSeExistir(guild, nome, categoria) {
+  const canal = guild.channels.cache.find(c => c.name === nome);
+  if (!canal) return; // não cria
 
-  if (!canal) {
-    return await guild.channels.create({
-      name: nome,
-      type: tipo,
-      parent: categoria.id
-    });
-  }
-
-  // 🔄 move se estiver fora da categoria
   if (canal.parentId !== categoria.id) {
     await canal.setParent(categoria.id);
   }
-
-  return canal;
 }
 
 // 📌 comando
 const commands = [
   new SlashCommandBuilder()
     .setName("setup-servidor")
-    .setDescription("Organiza tudo sem duplicar")
+    .setDescription("Organiza canais existentes sem criar nada")
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
-// 🔥 REGISTRO INSTANTÂNEO
+// 🔥 registrar instantâneo
 (async () => {
-  try {
-    console.log("🔄 Registrando comando...");
-
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
-    );
-
-    console.log("✅ Comando registrado na hora!");
-  } catch (err) {
-    console.log("❌ Erro ao registrar:", err);
-  }
+  await rest.put(
+    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    { body: commands }
+  );
 })();
 
-// ✅ READY CORRETO
+// ✅ pronto
 client.once("clientReady", () => {
-  console.log(`✅ Bot online como ${client.user.tag}`);
+  console.log("✅ Bot online");
 });
 
 // 🎮 comando
@@ -87,42 +60,34 @@ client.on("interactionCreate", async (interaction) => {
 
   if (interaction.commandName === "setup-servidor") {
     await interaction.reply({
-      content: "⚙️ Organizando tudo...",
+      content: "⚙️ Ajustando organização...",
       ephemeral: true
     });
 
     const guild = interaction.guild;
 
-    // 🏠 BASE
-    const base = await getOuCriaCategoria(guild, "🏠 BASE DA RESENHA");
-    await organizarCanal(guild, "📜・boas-vindas", 0, base);
-    await organizarCanal(guild, "📌・regras", 0, base);
-    await organizarCanal(guild, "📢・avisos", 0, base);
-
-    // 💬 COMUNIDADE
-    const com = await getOuCriaCategoria(guild, "💬 COMUNIDADE");
-    await organizarCanal(guild, "💭・chat-geral", 0, com);
-    await organizarCanal(guild, "😂・zoeira", 0, com);
-    await organizarCanal(guild, "📸・midia", 0, com);
-    await organizarCanal(guild, "💡・sugestões", 0, com);
-    await organizarCanal(guild, "📢・divulgacao", 0, com);
-
     // 💎 VIP
-    const vip = await getOuCriaCategoria(guild, "💎 ÁREA VIP");
-    await organizarCanal(guild, "💎・familia-souza", 0, vip);
-    await organizarCanal(guild, "💎・familia", 0, vip);
-    await organizarCanal(guild, "👕・set-roupas", 0, vip);
-    await organizarCanal(guild, "👗・roupas-aurora", 0, vip);
-    await organizarCanal(guild, "👔・roupas-henrique", 0, vip);
+    const vip = pegarCategoria(guild, "💎 ÁREA VIP");
+    if (vip) {
+      await moverSeExistir(guild, "💎・familia-souza", vip);
+      await moverSeExistir(guild, "💎・familia", vip);
+      await moverSeExistir(guild, "👕・set-roupas", vip);
+      await moverSeExistir(guild, "👗・roupas-aurora", vip);
+      await moverSeExistir(guild, "👔・roupas-henrique", vip);
+    }
 
     // 🔒 VOZ
-    const voz = await getOuCriaCategoria(guild, "🔒 RESENHAS");
-    await organizarCanal(guild, "🔒・resenha", 2, voz);
-    await organizarCanal(guild, "🔒・familia", 2, voz);
-    await organizarCanal(guild, "💤・dormindo", 2, voz);
+    const voz = pegarCategoria(guild, "🔒 RESENHAS");
+    if (voz) {
+      await moverSeExistir(guild, "🔒・resenha-secreta", voz);
+      await moverSeExistir(guild, "🔒・resenha-familia", voz);
+      await moverSeExistir(guild, "🔒・familia-naty", voz);
+      await moverSeExistir(guild, "🔒・resenha", voz);
+      await moverSeExistir(guild, "💤・dormindo", voz);
+    }
 
     await interaction.followUp({
-      content: "✅ Tudo organizado sem duplicar!"
+      content: "✅ Organização corrigida sem criar nada!"
     });
   }
 });
