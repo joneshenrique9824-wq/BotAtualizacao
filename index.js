@@ -5,7 +5,7 @@ import {
 } from "discord.js";
 
 // 🔐 COLE SEU TOKEN AQUI (SEM ESPAÇO)
-const TOKEN = "MTQ5ODMxMTA0OTUxNzA3NjY0MQ.GMpFdS.0Ry2PA8QlI-R9RH4zv9yVGQIF2UhtmQo5cGUFk";
+const TOKEN = "MTQ5ODMxMTA0OTUxNzA3NjY0MQ.Gzb20r.yBYb8xqjmGDlMa8M8MA4NHm0zLrzcinTIgGfBs";
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
